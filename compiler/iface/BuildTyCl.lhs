@@ -38,6 +38,7 @@ import TyCon
 import Type
 import Id
 import Coercion
+import TcType
 
 import DynFlags
 import TcRnMonad
@@ -184,20 +185,22 @@ mkDataConStupidTheta tycon arg_tys univ_tvs
 ------------------------------------------------------
 buildPatSyn :: Name -> Bool
             -> Id -> Maybe Id
-            -> [Var]
-            -> [TyVar] -> [TyVar]     -- Univ and ext
-            -> ThetaType -> ThetaType -- Prov and req
-            -> Type                  -- Result type
-            -> TcRnIf m n PatSyn
-buildPatSyn src_name declared_infix matcher wrapper args univ_tvs ex_tvs prov_theta req_theta pat_ty
-  = do	{ pprTrace "buildPatSyn: matcher:" (ppr (idType matcher)) $ return ()
-        ; return $ mkPatSyn src_name declared_infix
-                            args
-                            univ_tvs ex_tvs
-                            prov_theta req_theta
-                            pat_ty
-                            matcher
-                            wrapper }
+            -> [Name]
+            -> PatSyn
+buildPatSyn src_name declared_infix matcher wrapper arg_names
+  = mkPatSyn src_name declared_infix
+             args
+             univ_tvs ex_tvs prov_theta req_theta
+             pat_ty
+             matcher
+             wrapper
+  where
+    ((_:univ_tvs), req_theta, tau) = tcSplitSigmaTy $ idType matcher
+    ([pat_ty, cont_sigma, _], _) = tcSplitFunTys tau
+    (ex_tvs, prov_theta, cont_tau) = tcSplitSigmaTy cont_sigma
+    (arg_tys, _) = tcSplitFunTys cont_tau
+    args = ASSERT( length arg_names == length arg_tys )
+           zipWith mkLocalId arg_names arg_tys
 
 \end{code}
 

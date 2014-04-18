@@ -55,7 +55,6 @@ import TysWiredIn ( eqTyConName )
 import Fingerprint
 import Binary
 import BooleanFormula ( BooleanFormula )
-import HsBinds
 
 import Control.Monad
 import System.IO.Unsafe
@@ -124,12 +123,7 @@ data IfaceDecl
                   ifPatIsInfix    :: Bool,
                   ifPatMatcher    :: IfExtName,
                   ifPatWrapper    :: Maybe IfExtName,
-                  ifPatUnivTvs    :: [IfaceTvBndr],
-                  ifPatExTvs      :: [IfaceTvBndr],
-                  ifPatProvCtxt   :: IfaceContext,
-                  ifPatReqCtxt    :: IfaceContext,
-                  ifPatArgs       :: [IfaceIdBndr],
-                  ifPatTy         :: IfaceType }
+                  ifPatArgs       :: [IfLclName] }
 
 -- A bit of magic going on here: there's no need to store the OccName
 -- for a decl on the disk, since we can infer the namespace from the
@@ -188,18 +182,13 @@ instance Binary IfaceDecl where
         put_ bh a3
         put_ bh a4
 
-    put_ bh (IfacePatSyn name a2 a3 a4 a5 a6 a7 a8 a9 a10) = do
+    put_ bh (IfacePatSyn name a2 a3 a4 a5) = do
         putByte bh 6
         put_ bh (occNameFS name)
         put_ bh a2
         put_ bh a3
         put_ bh a4
         put_ bh a5
-        put_ bh a6
-        put_ bh a7
-        put_ bh a8
-        put_ bh a9
-        put_ bh a10
 
     get bh = do
         h <- getByte bh
@@ -252,13 +241,8 @@ instance Binary IfaceDecl where
                     a3 <- get bh
                     a4 <- get bh
                     a5 <- get bh
-                    a6 <- get bh
-                    a7 <- get bh
-                    a8 <- get bh
-                    a9 <- get bh
-                    a10 <- get bh
                     occ <- return $! mkOccNameFS dataName a1
-                    return (IfacePatSyn occ a2 a3 a4 a5 a6 a7 a8 a9 a10)
+                    return (IfacePatSyn occ a2 a3 a4 a5)
             _ -> panic (unwords ["Unknown IfaceDecl tag:", show h])
 
 data IfaceSynTyConRhs
@@ -1107,25 +1091,12 @@ pprIfaceDecl (IfaceAxiom {ifName = name, ifTyCon = tycon, ifAxBranches = branche
   = hang (ptext (sLit "axiom") <+> ppr name <> dcolon)
        2 (vcat $ map (pprAxBranch $ Just tycon) branches)
 
-pprIfaceDecl (IfacePatSyn { ifName = name, ifPatWrapper = wrapper,
-                            ifPatIsInfix = is_infix,
-                            ifPatUnivTvs = _univ_tvs, ifPatExTvs = _ex_tvs,
-                            ifPatProvCtxt = prov_ctxt, ifPatReqCtxt = req_ctxt,
-                            ifPatArgs = args,
-                            ifPatTy = ty })
-  = pprPatSynSig name has_wrap args' ty' (pprCtxt prov_ctxt) (pprCtxt req_ctxt)
-  where
-    has_wrap = isJust wrapper
-    args' = case (is_infix, map snd args) of
-        (True, [left_ty, right_ty]) ->
-            InfixPatSyn (pprParendIfaceType left_ty) (pprParendIfaceType right_ty)
-        (_, tys) ->
-            PrefixPatSyn (map pprParendIfaceType tys)
-
-    ty' = pprParendIfaceType ty
-
-    pprCtxt [] = Nothing
-    pprCtxt ctxt = Just $ pprIfaceContext ctxt
+pprIfaceDecl (IfacePatSyn { ifName = name, ifPatMatcher = matcher,
+                            ifPatWrapper = wrapper })
+  = hang (ptext (sLit "pattern") <+> ppr name)
+       2 (vcat [ ptext (sLit "matcher:") <+> ppr matcher
+               , maybe empty (\w -> ptext (sLit "wrapper:") <+> ppr w) wrapper
+               ])
 
 pprCType :: Maybe CType -> SDoc
 pprCType Nothing = ptext (sLit "No C type associated")
@@ -1398,13 +1369,7 @@ freeNamesIfDecl d@IfaceAxiom{} =
   fnList freeNamesIfAxBranch (ifAxBranches d)
 freeNamesIfDecl d@IfacePatSyn{} =
   unitNameSet (ifPatMatcher d) &&&
-  maybe emptyNameSet unitNameSet (ifPatWrapper d) &&&
-  freeNamesIfTvBndrs (ifPatUnivTvs d) &&&
-  freeNamesIfTvBndrs (ifPatExTvs d) &&&
-  freeNamesIfContext (ifPatProvCtxt d) &&&
-  freeNamesIfContext (ifPatReqCtxt d) &&&
-  fnList freeNamesIfType (map snd (ifPatArgs d)) &&&
-  freeNamesIfType (ifPatTy d)
+  maybe emptyNameSet unitNameSet (ifPatWrapper d)
 
 freeNamesIfAxBranch :: IfaceAxBranch -> NameSet
 freeNamesIfAxBranch (IfaceAxBranch { ifaxbTyVars = tyvars

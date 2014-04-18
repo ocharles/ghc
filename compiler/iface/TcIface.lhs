@@ -586,28 +586,14 @@ tc_iface_decl _ _ (IfacePatSyn{ ifName = occ_name
                               , ifPatMatcher = matcher_name
                               , ifPatWrapper = wrapper_name
                               , ifPatIsInfix = is_infix
-                              , ifPatUnivTvs = univ_tvs
-                              , ifPatExTvs = ex_tvs
-                              , ifPatProvCtxt = prov_ctxt
-                              , ifPatReqCtxt = req_ctxt
-                              , ifPatArgs = args
-                              , ifPatTy = pat_ty })
+                              , ifPatArgs = args })
   = do { name <- lookupIfaceTop occ_name
-       ; traceIf (ptext (sLit "tc_iface_decl") <+> ppr name)
        ; matcher <- tcExt "Matcher" matcher_name
        ; wrapper <- maybe (return Nothing) (fmap Just . tcExt "Wrapper") wrapper_name
-       ; bindIfaceTyVars univ_tvs $ \univ_tvs -> do
-       { bindIfaceTyVars ex_tvs $ \ex_tvs -> do
-       { bindIfaceIdVars args $ \args -> do
-       { ~(prov_theta, req_theta, pat_ty) <- forkM (mk_doc name) $
-             do { prov_theta <- tcIfaceCtxt prov_ctxt
-                ; req_theta  <- tcIfaceCtxt req_ctxt
-                ; pat_ty     <- tcIfaceType pat_ty
-                ; return (prov_theta, req_theta, pat_ty) }
-       ; patsyn <- buildPatSyn name is_infix matcher wrapper args univ_tvs ex_tvs prov_theta req_theta pat_ty
-       ; return (AConLike (PatSynCon patsyn)) }}}}
+       ; argNames <- mapM (newIfaceName . mkVarOccFS) args
+       ; return $ AConLike . PatSynCon $
+             buildPatSyn name is_infix matcher wrapper argNames }
   where
-     mk_doc n = ptext (sLit "Pattern synonym") <+> ppr n
      tcExt s name = forkM (ptext (sLit s) <+> ppr name) $ tcIfaceExtId name
 
 tc_ax_branches :: TyCon -> [IfaceAxBranch] -> IfL [CoAxBranch]
@@ -1548,20 +1534,6 @@ bindIfaceTyVars bndrs thing_inside
         ; extendIfaceTyVarEnv tvs (thing_inside (kvs ++ tvs)) } }
   where
     (occs,kinds) = unzip bndrs
-
-bindIfaceIdVar :: IfaceIdBndr -> (Id -> IfL a) -> IfL a
-bindIfaceIdVar (occ, ty) thing_inside
-  = do  { name <- newIfaceName (mkVarOccFS occ)
-        ; ty' <- tcIfaceType ty
-        ; let id = mkLocalId name ty'
-        ; extendIfaceIdEnv [id] (thing_inside id) }
-
-bindIfaceIdVars :: [IfaceIdBndr] -> ([Id] -> IfL a) -> IfL a
-bindIfaceIdVars []     thing_inside = thing_inside []
-bindIfaceIdVars (v:vs) thing_inside
-  = bindIfaceIdVar v     $ \ v' ->
-    bindIfaceIdVars vs   $ \ vs' ->
-    thing_inside (v':vs')
 
 isSuperIfaceKind :: IfaceKind -> Bool
 isSuperIfaceKind (IfaceTyConApp (IfaceTc n) []) = n == superKindTyConName
