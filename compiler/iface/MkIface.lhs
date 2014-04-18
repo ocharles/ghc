@@ -1488,7 +1488,8 @@ dataConToIfaceDecl dataCon
 patSynToIfaceDecl :: PatSyn -> IfaceDecl
 patSynToIfaceDecl ps
   = IfacePatSyn { ifName          = getOccName . getName $ ps
-                , ifPatHasWrapper = isJust $ patSynWrapper ps
+                , ifPatMatcher    = matcher
+                , ifPatWrapper    = wrapper
                 , ifPatIsInfix    = patSynIsInfix ps
                 , ifPatUnivTvs    = toIfaceTvBndrs univ_tvs'
                 , ifPatExTvs      = toIfaceTvBndrs ex_tvs'
@@ -1506,6 +1507,9 @@ patSynToIfaceDecl ps
     rhs_ty = patSynType ps
     (env1, univ_tvs') = tidyTyVarBndrs emptyTidyEnv univ_tvs
     (env2, ex_tvs')   = tidyTyVarBndrs env1 ex_tvs
+
+    matcher = idName (patSynMatcher ps)
+    wrapper = fmap idName (patSynWrapper ps)
 
 
 --------------------------

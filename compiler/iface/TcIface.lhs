@@ -583,7 +583,8 @@ tc_iface_decl _ _ (IfaceAxiom { ifName = ax_occ, ifTyCon = tc
        ; return (ACoAxiom axiom) }
 
 tc_iface_decl _ _ (IfacePatSyn{ ifName = occ_name
-                              , ifPatHasWrapper = has_wrapper
+                              , ifPatMatcher = matcher_name
+                              , ifPatWrapper = wrapper_name
                               , ifPatIsInfix = is_infix
                               , ifPatUnivTvs = univ_tvs
                               , ifPatExTvs = ex_tvs
@@ -593,6 +594,8 @@ tc_iface_decl _ _ (IfacePatSyn{ ifName = occ_name
                               , ifPatTy = pat_ty })
   = do { name <- lookupIfaceTop occ_name
        ; traceIf (ptext (sLit "tc_iface_decl") <+> ppr name)
+       ; _matcher <- tcExt "Matcher" matcher_name
+       ; wrapper <- maybe (return Nothing) (fmap Just . tcExt "Wrapper") wrapper_name
        ; bindIfaceTyVars univ_tvs $ \univ_tvs -> do
        { bindIfaceTyVars ex_tvs $ \ex_tvs -> do
        { bindIfaceIdVars args $ \args -> do
@@ -602,11 +605,11 @@ tc_iface_decl _ _ (IfacePatSyn{ ifName = occ_name
                 ; pat_ty     <- tcIfaceType pat_ty
                 ; return (prov_theta, req_theta, pat_ty) }
        ; bindIfaceTyVar (fsLit "r", toIfaceKind liftedTypeKind) $ \tv -> do
-       { patsyn <- buildPatSyn name is_infix has_wrapper args univ_tvs ex_tvs prov_theta req_theta pat_ty tv
+       { patsyn <- buildPatSyn name is_infix (isJust wrapper) args univ_tvs ex_tvs prov_theta req_theta pat_ty tv
        ; return (AConLike (PatSynCon patsyn)) }}}}}
   where
      mk_doc n = ptext (sLit "Pattern synonym") <+> ppr n
-
+     tcExt s name = forkM (ptext (sLit s) <+> ppr name) $ tcIfaceExtId name
 
 tc_ax_branches :: TyCon -> [IfaceAxBranch] -> IfL [CoAxBranch]
 tc_ax_branches tc if_branches = foldlM (tc_ax_branch (tyConKind tc)) [] if_branches
