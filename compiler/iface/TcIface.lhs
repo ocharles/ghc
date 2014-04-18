@@ -594,7 +594,7 @@ tc_iface_decl _ _ (IfacePatSyn{ ifName = occ_name
                               , ifPatTy = pat_ty })
   = do { name <- lookupIfaceTop occ_name
        ; traceIf (ptext (sLit "tc_iface_decl") <+> ppr name)
-       ; _matcher <- tcExt "Matcher" matcher_name
+       ; matcher <- tcExt "Matcher" matcher_name
        ; wrapper <- maybe (return Nothing) (fmap Just . tcExt "Wrapper") wrapper_name
        ; bindIfaceTyVars univ_tvs $ \univ_tvs -> do
        { bindIfaceTyVars ex_tvs $ \ex_tvs -> do
@@ -604,9 +604,8 @@ tc_iface_decl _ _ (IfacePatSyn{ ifName = occ_name
                 ; req_theta  <- tcIfaceCtxt req_ctxt
                 ; pat_ty     <- tcIfaceType pat_ty
                 ; return (prov_theta, req_theta, pat_ty) }
-       ; bindIfaceTyVar (fsLit "r", toIfaceKind liftedTypeKind) $ \tv -> do
-       { patsyn <- buildPatSyn name is_infix (isJust wrapper) args univ_tvs ex_tvs prov_theta req_theta pat_ty tv
-       ; return (AConLike (PatSynCon patsyn)) }}}}}
+       ; patsyn <- buildPatSyn name is_infix matcher wrapper args univ_tvs ex_tvs prov_theta req_theta pat_ty
+       ; return (AConLike (PatSynCon patsyn)) }}}}
   where
      mk_doc n = ptext (sLit "Pattern synonym") <+> ppr n
      tcExt s name = forkM (ptext (sLit s) <+> ppr name) $ tcIfaceExtId name
