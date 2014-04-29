@@ -58,7 +58,6 @@ import BooleanFormula ( BooleanFormula )
 
 import Control.Monad
 import System.IO.Unsafe
-import Data.Maybe ( isJust )
 
 infixl 3 &&&
 \end{code}
@@ -1002,11 +1001,6 @@ ifaceDeclImplicitBndrs (IfaceClass {ifCtxt = sc_ctxt, ifName = cls_tc_occ,
     dcww_occ = mkDataConWorkerOcc dc_occ
     dc_occ = mkClassDataConOcc cls_tc_occ
     is_newtype = n_sigs + n_ctxt == 1 -- Sigh
-
-ifaceDeclImplicitBndrs (IfacePatSyn{ ifName = ps_occ, ifPatWrapper = wrapper_name })
-  = [wrap_occ | isJust wrapper_name]
-  where
-    wrap_occ = mkDataConWrapperOcc ps_occ
 
 ifaceDeclImplicitBndrs _ = []
 

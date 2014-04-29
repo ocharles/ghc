@@ -589,7 +589,10 @@ tc_iface_decl _ _ (IfacePatSyn{ ifName = occ_name
                               , ifPatArgs = args })
   = do { name <- lookupIfaceTop occ_name
        ; matcher <- tcExt "Matcher" matcher_name
-       ; wrapper <- maybe (return Nothing) (fmap Just . tcExt "Wrapper") wrapper_name
+       ; wrapper <- case wrapper_name of
+                        Nothing -> return Nothing
+                        Just wn -> do { wid <- tcExt "Wrapper" wn
+                                      ; return (Just wid) }
        ; argNames <- mapM (newIfaceName . mkVarOccFS) args
        ; return $ AConLike . PatSynCon $
              buildPatSyn name is_infix matcher wrapper argNames }
