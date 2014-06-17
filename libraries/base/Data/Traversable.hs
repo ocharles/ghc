@@ -291,4 +291,3 @@ instance Functor Id where
 instance Applicative Id where
     pure = Id
     Id f <*> Id x = Id (f x)
-

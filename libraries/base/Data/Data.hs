@@ -8,7 +8,7 @@
 -- Module      :  Data.Data
 -- Copyright   :  (c) The University of Glasgow, CWI 2001--2004
 -- License     :  BSD-style (see the file libraries/base/LICENSE)
--- 
+--
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  experimental
 -- Portability :  non-portable (local universal quantification)
@@ -17,7 +17,7 @@
 -- See <http://www.cs.vu.nl/boilerplate/>. This module provides
 -- the 'Data' class with its primitives for generic programming, along
 -- with instances for many datatypes. It corresponds to a merge between
--- the previous "Data.Generics.Basics" and almost all of 
+-- the previous "Data.Generics.Basics" and almost all of
 -- "Data.Generics.Instances". The instances that are not present
 -- in this module were moved to the @Data.Generics.Instances@ module
 -- in the @syb@ package.
@@ -40,7 +40,7 @@ module Data.Data (
                 dataTypeOf,
                 dataCast1,      -- mediate types and unary type constructors
                 dataCast2,      -- mediate types and binary type constructors
-                -- Generic maps defined in terms of gfoldl 
+                -- Generic maps defined in terms of gfoldl
                 gmapT,
                 gmapQ,
                 gmapQl,
@@ -345,10 +345,10 @@ class Typeable a => Data a where
   -- injection and projection using 'return' and '>>='.
   gmapM :: forall m. Monad m => (forall d. Data d => d -> m d) -> a -> m a
 
-  -- Use immediately the monad datatype constructor 
+  -- Use immediately the monad datatype constructor
   -- to instantiate the type constructor c in the type of gfoldl,
   -- so injection and projection is done by return and >>=.
-  --  
+  --
   gmapM f = gfoldl k return
     where
       k :: Data d => m (d -> b) -> d -> m b
@@ -385,8 +385,8 @@ this end, we couple the monadic computation with a Boolean.
 
 {-
 
-We use the same pairing trick as for gmapMp, 
-i.e., we use an extra Bool component to keep track of the 
+We use the same pairing trick as for gmapMp,
+i.e., we use an extra Bool component to keep track of the
 fact whether an immediate subterm was processed successfully.
 However, we cut of mapping over subterms once a first subterm
 was transformed successfully.
@@ -449,7 +449,7 @@ fromConstrB f = unID . gunfold k z
  where
   k :: forall b r. Data b => ID (b -> r) -> ID r
   k c = ID (unID c f)
- 
+
   z :: forall r. r -> ID r
   z = ID
 
@@ -619,7 +619,7 @@ dataTypeConstrs dt = case datarep dt of
 
 
 -- | Gets the field labels of a constructor.  The list of labels
--- is returned in the same order as they were given in the original 
+-- is returned in the same order as they were given in the original
 -- constructor declaration.
 constrFields :: Constr -> [String]
 constrFields = confields
@@ -634,7 +634,7 @@ constrFixity = confixity
 ------------------------------------------------------------------------------
 --
 --      From strings to constr's and vice versa: all data types
---      
+--
 ------------------------------------------------------------------------------
 
 
@@ -1313,7 +1313,7 @@ instance (Data a, Typeable a) => Data (ForeignPtr a) where
   dataCast1 x  = gcast1 x
 
 ------------------------------------------------------------------------------
--- The Data instance for Array preserves data abstraction at the cost of 
+-- The Data instance for Array preserves data abstraction at the cost of
 -- inefficiency. We omit reflection services for the sake of data abstraction.
 instance (Typeable a, Data a, Data b, Ix a) => Data (Array a b)
  where
