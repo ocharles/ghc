@@ -7,6 +7,8 @@
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE StandaloneDeriving     #-}
 {-# LANGUAGE DeriveGeneric          #-}
+{-# LANGUAGE DeriveDataTypeable     #-}
+{-# LANGUAGE DeriveFunctor          #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -566,7 +568,11 @@ import Data.Maybe ( Maybe(..) )
 import Data.Either ( Either(..) )
 
 -- Needed for instances
+import Control.Monad (MonadPlus(..))
+import Data.Typeable (Typeable)
+import GHC.Base (Functor(..), Monad(..))
 import GHC.Classes ( Eq, Ord )
+import GHC.Enum (Bounded, Enum)
 import GHC.Read ( Read )
 import GHC.Show ( Show )
 import Data.Proxy
@@ -577,46 +583,85 @@ import Data.Proxy
 
 -- | Void: used for datatypes without constructors
 data V1 p
+  deriving (Typeable, Functor, Generic)
 
 -- | Unit: used for constructors without arguments
 data U1 p = U1
-  deriving (Eq, Ord, Read, Show, Generic)
+  deriving (Eq, Ord, Read, Show, Generic, Typeable, Functor)
+
+instance Monad U1 where
+  return _ = U1
+  U1 >>= f = U1
 
 -- | Used for marking occurrences of the parameter
 newtype Par1 p = Par1 { unPar1 :: p }
-  deriving (Eq, Ord, Read, Show, Generic)
+  deriving (Eq, Ord, Read, Show, Generic, Typeable, Functor)
+
+instance Monad Par1 where
+  return a = Par1 a
+  (Par1 x) >>= f = f x
 
 -- | Recursive calls of kind * -> *
 newtype Rec1 f p = Rec1 { unRec1 :: f p }
-  deriving (Eq, Ord, Read, Show, Generic)
+  deriving (Eq, Ord, Read, Show, Generic, Typeable, Functor)
+
+instance Monad f => Monad (Rec1 f) where
+  return a = Rec1 (return a)
+  (Rec1 x) >>= f = Rec1 (x >>= \a -> unRec1 (f a))
+
+instance MonadPlus f => MonadPlus (Rec1 f) where
+  mzero = Rec1 mzero
+  mplus (Rec1 a) (Rec1 b) = Rec1 (mplus a b)
 
 -- | Constants, additional parameters and recursion of kind *
 newtype K1 i c p = K1 { unK1 :: c }
-  deriving (Eq, Ord, Read, Show, Generic)
+  deriving (Eq, Ord, Read, Show, Generic, Typeable, Functor)
 
 -- | Meta-information (constructor names, etc.)
 newtype M1 i c f p = M1 { unM1 :: f p }
-  deriving (Eq, Ord, Read, Show, Generic)
+  deriving (Eq, Ord, Read, Show, Generic, Typeable, Functor)
+
+instance Monad f => Monad (M1 i c f) where
+  return a = M1 (return a)
+  (M1 x) >>= f = M1 (x >>= \a -> unM1 (f a))
+
+instance MonadPlus f => MonadPlus (M1 i c f) where
+  mzero = M1 mzero
+  mplus (M1 a) (M1 b) = M1 (mplus a b)
 
 -- | Sums: encode choice between constructors
 infixr 5 :+:
 data (:+:) f g p = L1 (f p) | R1 (g p)
-  deriving (Eq, Ord, Read, Show, Generic)
+  deriving (Eq, Ord, Read, Show, Generic, Typeable, Functor)
 
 -- | Products: encode multiple arguments to constructors
 infixr 6 :*:
 data (:*:) f g p = f p :*: g p
-  deriving (Eq, Ord, Read, Show, Generic)
+  deriving (Eq, Ord, Read, Show, Generic, Typeable, Functor)
+
+instance (Monad f, Monad g) => Monad ((:*:) f g) where
+    return x = return x :*: return x
+    (m :*: n) >>= f = (m >>= \a -> fstP (f a)) :*: (n >>= \a -> sndP (f a))
+      where
+        fstP (a :*: _) = a
+        sndP (_ :*: b) = b
+
+instance (MonadPlus f, MonadPlus g) => MonadPlus ((:*:) f g) where
+    mzero = mzero :*: mzero
+    (x1 :*: y1) `mplus` (x2 :*: y2) =  (x1 `mplus` x2) :*: (y1 `mplus` y2)
 
 -- | Composition of functors
 infixr 7 :.:
 newtype (:.:) f g p = Comp1 { unComp1 :: f (g p) }
-  deriving (Eq, Ord, Read, Show, Generic)
+  deriving (Eq, Ord, Read, Show, Generic, Typeable, Functor)
 
 -- | Tag for K1: recursion (of kind *)
 data R
+  deriving (Typeable)
+
 -- | Tag for K1: parameters (other than the last)
 data P
+  deriving (Typeable)
 
 -- | Type synonym for encoding recursion (of kind *)
 type Rec0  = K1 R
@@ -627,10 +672,13 @@ type Par0  = K1 P
 
 -- | Tag for M1: datatype
 data D
+  deriving (Typeable)
 -- | Tag for M1: constructor
 data C
+  deriving (Typeable)
 -- | Tag for M1: record selector
 data S
+  deriving (Typeable)
 
 -- | Type synonym for encoding meta-information for datatypes
 type D1 = M1 D
@@ -679,12 +727,12 @@ class Constructor c where
 
 -- | Datatype to represent the arity of a tuple.
 data Arity = NoArity | Arity Int
-  deriving (Eq, Show, Ord, Read, Generic)
+  deriving (Eq, Show, Ord, Read, Generic, Typeable)
 
 -- | Datatype to represent the fixity of a constructor. An infix
 -- | declaration directly corresponds to an application of 'Infix'.
 data Fixity = Prefix | Infix Associativity Int
-  deriving (Eq, Show, Ord, Read, Generic)
+  deriving (Eq, Show, Ord, Read, Generic, Typeable)
 
 -- | Get the precedence of a fixity value.
 prec :: Fixity -> Int
@@ -695,7 +743,7 @@ prec (Infix _ n) = n
 data Associativity = LeftAssociative
                    | RightAssociative
                    | NotAssociative
-  deriving (Eq, Show, Ord, Read, Generic)
+  deriving (Eq, Show, Ord, Read, Generic, Typeable, Enum, Bounded)
 
 -- | Representable types of kind *.
 -- This class is derivable in GHC with the DeriveGeneric flag on.

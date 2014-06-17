@@ -1,4 +1,6 @@
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveFoldable #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -70,6 +72,7 @@ import Data.Proxy
 
 import GHC.Exts (build)
 import GHC.Arr
+import GHC.Generics
 
 -- | Data structures that can be folded.
 --
@@ -203,6 +206,17 @@ instance Foldable Proxy where
 
 instance Foldable (Const m) where
     foldMap _ _ = mempty
+
+-- Instances for GHC.Generics
+deriving instance Foldable V1
+deriving instance Foldable U1
+deriving instance Foldable Par1
+deriving instance Foldable f => Foldable (Rec1 f)
+deriving instance Foldable (K1 i c)
+deriving instance Foldable f => Foldable (M1 i c f)
+deriving instance (Foldable f, Foldable g) => Foldable ((:+:) f g)
+deriving instance (Foldable f, Foldable g) => Foldable ((:*:) f g)
+deriving instance (Foldable f, Foldable g) => Foldable ((:.:) f g)
 
 -- | Monadic fold over the elements of a structure,
 -- associating to the right, i.e. from right to left.

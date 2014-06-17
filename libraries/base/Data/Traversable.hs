@@ -1,4 +1,6 @@
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveTraversable #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -58,6 +60,7 @@ import Data.Monoid (Monoid)
 import Data.Proxy
 
 import GHC.Arr
+import GHC.Generics
 
 -- | Functors representing data structures that can be traversed from
 -- left to right.
@@ -201,6 +204,17 @@ instance Traversable Proxy where
 
 instance Traversable (Const m) where
     traverse _ (Const m) = pure $ Const m
+
+-- Instances for GHC.Generics
+deriving instance Traversable V1
+deriving instance Traversable U1
+deriving instance Traversable Par1
+deriving instance Traversable f => Traversable (Rec1 f)
+deriving instance Traversable (K1 i c)
+deriving instance Traversable f => Traversable (M1 i c f)
+deriving instance (Traversable f, Traversable g) => Traversable ((:+:) f g)
+deriving instance (Traversable f, Traversable g) => Traversable ((:*:) f g)
+deriving instance (Traversable f, Traversable g) => Traversable ((:.:) f g)
 
 -- general functions
 

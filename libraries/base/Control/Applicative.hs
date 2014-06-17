@@ -301,6 +301,52 @@ instance Applicative Proxy where
     _ <*> _ = Proxy
     {-# INLINE (<*>) #-}
 
+-- Instances for GHC.Generics
+
+instance Applicative U1 where
+  pure _ = U1
+  U1 <*> U1 = U1
+
+instance Alternative U1 where
+  empty = U1
+  U1 <|> U1 = U1
+
+instance Applicative Par1 where
+  pure a = Par1 a
+  (Par1 f) <*> (Par1 x) = Par1 (f x)
+
+instance Applicative f => Applicative (Rec1 f) where
+  pure a = Rec1 (pure a)
+  (Rec1 f) <*> (Rec1 x) = Rec1 (f <*> x)
+
+instance Alternative f => Alternative (Rec1 f) where
+  empty = Rec1 empty
+  (Rec1 l) <|> (Rec1 r) = Rec1 (l <|> r)
+
+instance Applicative f => Applicative (M1 i c f) where
+  pure a = M1 (pure a)
+  (M1 f) <*> (M1 x) = M1 (f <*> x)
+
+instance Alternative f => Alternative (M1 i c f) where
+  empty = M1 empty
+  (M1 l) <|> (M1 r) = M1 (l <|> r)
+
+instance (Applicative f, Applicative g) => Applicative ((:*:) f g) where
+  pure a = pure a :*: pure a
+  (f :*: g) <*> (x :*: y) = (f <*> x) :*: (g <*> y)
+
+instance (Alternative f, Alternative g) => Alternative ((:*:) f g) where
+    empty = empty :*: empty
+    (x1 :*: y1) <|> (x2 :*: y2) = (x1 <|> x2) :*: (y1 <|> y2)
+
+instance (Applicative f, Applicative g) => Applicative ((:.:) f g) where
+    pure x = Comp1 (pure (pure x))
+    Comp1 f <*> Comp1 x = Comp1 ((<*>) <$> f <*> x)
+
+instance (Alternative f, Applicative g) => Alternative ((:.:) f g) where
+    empty = Comp1 empty
+    Comp1 x <|> Comp1 y = Comp1 (x <|> y)
+
 -- extra functions
 
 -- | A variant of '<*>' with the arguments reversed.
